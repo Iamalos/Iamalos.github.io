@@ -6,7 +6,7 @@
 # https://learn-the-web.algonquindesign.ca/topics/markdown-yaml-cheat-sheet/#yaml
 # https://learnxinyminutes.com/docs/yaml/
 
-title: Test Title
+title: Studying Deep Learing with PyTorch
 description: Computer Science and Other
 github_username: Iamalos
 
@@ -15,7 +15,7 @@ email:
 twitter_username:
 
 # Set this to true to get LaTeX math equation support
-use_math:
+use_math: true 
 
 # Add your Google Analytics ID here if you have one and want to use it
 google_analytics:
