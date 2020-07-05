@@ -112,6 +112,27 @@ We can look at a simplified example, inspired by [post](https://prateekvjoshi.co
 
 We  often don't worry about this as deep learning frameworks implement the necessary weights initialization under the hood, but it is still important to understand why it matters this much. I discuss weight initialization in greater details in separate posts.
 
+```python
+seaborn.set(style='ticks')
+z = torch.linspace(-6,6,100)
+sigmoid = [1 / (1 + math.exp(-x)) for x in z]
+fig, ax = plt.subplots()
+
+ax.plot(z, sigmoid, c='r', label = r"$ \frac{1}{1+e^{- z}}$")
+ax.grid(True, which='both')
+
+seaborn.despine(ax=ax, offset=0)
+ax.spines['left'].set_position('zero')
+
+ax.legend()
+
+plt.setp(ax.get_legend().get_texts(), fontsize='22');
+```
+
+
+![png](2020-07-03-FullyConnectedLayer_files/output_18_0.png)
+
+
 The goal is for each layer to have mean of 0.0 and variance  of 1.0 for every layer in order to avoid gradient vanishing or exploding. This issues was tackled by Xavier in his paper [Understanding the difficulty of training deep feedforward neural networks](http://proceedings.mlr.press/v9/glorot10a.html).
 
 Let's briefly discuss the reasoning behind his approach. <br>
@@ -306,7 +327,8 @@ def relu_grad(inp, out):
 def lin_grad(inp, out, w, b):
     # grad of matmul with respect to input
     inp.g = out.g @ w.t()
-    w.g = (inp.unsqueeze(-1) * out.g.unsqueeze(1)).sum(0)
+    #w.g = (inp.unsqueeze(-1) * out.g.unsqueeze(1)).sum(0)
+    w.g = inp.t() @ out.g
     b.g = out.g.sum(0)
 ```
 
