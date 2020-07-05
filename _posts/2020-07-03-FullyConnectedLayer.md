@@ -1,4 +1,4 @@
-# FullyConnected Layer
+# Fully Connected Layer
 
 
 
@@ -50,7 +50,7 @@ plt.imshow(x_train[0].view(28,28));
 ```
 
 
-![png](2020-07-03-FullyConnectedLayer_files/output_6_0.png)
+![png](/images/FullyConnectedLayer_files/output_6_0.png)
 
 
 ### Preparing the data
@@ -130,13 +130,15 @@ plt.setp(ax.get_legend().get_texts(), fontsize='22');
 ```
 
 
-![png](2020-07-03-FullyConnectedLayer_files/output_18_0.png)
+![png](/images/FullyConnectedLayer_files/output_18_0.png)
 
 
 The goal is for each layer to have mean of 0.0 and variance  of 1.0 for every layer in order to avoid gradient vanishing or exploding. This issues was tackled by Xavier in his paper [Understanding the difficulty of training deep feedforward neural networks](http://proceedings.mlr.press/v9/glorot10a.html).
 
 Let's briefly discuss the reasoning behind his approach. <br>
-Consider a fully-connected linear layer: $ y = x * w + b$ which is $ y = x_{1}*w_{1} + x_{2}*w_{2} + ... + x_{N}*w_{N} + b $. Our goal is to make the variance of $y$ equal to $1$. Assuming independence between $x$ and $y$ we have the following formula: 
+Consider a fully-connected linear layer: $$ y = x * w + b$$ which is $$ y = x_{1}*w_{1} + x_{2}*w_{2} + ... + x_{N}*w_{N} + b $$. 
+
+Our goal is to make the variance of $y$ equal to $1$. Assuming independence between $x$ and $y$ we have the following formula: 
 
 {% raw %}
 $$Var(x*y) = Var(x)*Var(y) + (Var(x)*E(y))^2 + (Var(y)*E(x))^2$$
@@ -429,8 +431,4 @@ class Relu():
     
     def backward(self):
         
-```
-
-```python
-!nbdev_nb2md 2020-07-03-FullyConnectedLayer.ipynb
 ```
