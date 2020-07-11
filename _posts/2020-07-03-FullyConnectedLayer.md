@@ -196,7 +196,7 @@ t.mean(), t.std()
 
 
 
-    (tensor(0.0833), tensor(1.0343))
+    (tensor(0.0308), tensor(1.0058))
 
 
 
@@ -214,7 +214,7 @@ t.mean(), t.std()
 
 
 
-    (tensor(0.4491), tensor(0.6569))
+    (tensor(0.4149), tensor(0.6094))
 
 
 
@@ -233,7 +233,7 @@ t.mean(), t.std()
 
 
 
-    (tensor(0.5875), tensor(0.8513))
+    (tensor(0.4836), tensor(0.7872))
 
 
 
@@ -257,7 +257,7 @@ t.mean(), t.std()
 
 
 
-    (tensor(0.5106), tensor(0.8187))
+    (tensor(0.6008), tensor(0.9055))
 
 
 
@@ -282,7 +282,7 @@ def model(xb):
 %timeit -n 10 model(x_train)
 ```
 
-    24.2 ms ± 3.47 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    23.8 ms ± 4.28 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
 
 
 ### Loss function: MSE
@@ -302,7 +302,7 @@ mse(preds, y_train)
 
 
 
-    tensor(26.2428)
+    tensor(35.1859)
 
 
 
@@ -364,23 +364,6 @@ inp = x_train.g.clone()
 ```
 
 ```python
-w1g
-```
-
-
-
-
-    tensor([[-0.1282, -0.0313, -0.2001,  ..., -0.0689,  0.3500, -0.1771],
-            [-0.1282, -0.0313, -0.2001,  ..., -0.0689,  0.3500, -0.1771],
-            [-0.1282, -0.0313, -0.2001,  ..., -0.0689,  0.3500, -0.1771],
-            ...,
-            [-0.1282, -0.0313, -0.2001,  ..., -0.0689,  0.3500, -0.1771],
-            [-0.1282, -0.0313, -0.2001,  ..., -0.0689,  0.3500, -0.1771],
-            [-0.1282, -0.0313, -0.2001,  ..., -0.0689,  0.3500, -0.1771]])
-
-
-
-```python
 # we can check our results against pytorch
 w12 = w1.clone().requires_grad_(True)
 b12 = b1.clone().requires_grad_(True)
@@ -426,9 +409,217 @@ class Relu():
     # __call__ allows us to call Relu directly as a function
     def __call__(self,inp):
         self.inp = inp
-        self.out = self.inp.clamp_min(0.) - 0.5
+        self.out = inp.clamp_min(0.) - 0.5
+        return self.out
+    
+    def backward(self): self.inp.g = (self.inp > 0.).float() * self.out.g
+```
+
+```python
+class Lin():
+    def __init__(self, w, b): self.w, self.b = w, b
+    
+    def __call__(self, inp):
+        self.inp = inp
+        self.out = inp @ self.w + self.b
         return self.out
     
     def backward(self):
-        
+        #print(f"out {self.out.g.shape}, w shape {self.w.shape}")
+        self.inp.g = self.out.g @ self.w.t()
+        self.w.g =  self.inp.t() @ self.out.g
+        self.b.g = self.out.g.sum(0)
 ```
+
+```python
+class MSE():
+    def __call__(self, inp, targ):
+        self.inp = inp
+        self.targ = targ
+        self.out = (inp.squeeze() - targ).pow(2).mean()
+    
+    def backward(self):
+        self.inp.g = 2. * (self.inp.squeeze() - self.targ).unsqueeze(-1) / self.inp.shape[0]
+```
+
+```python
+class Model():
+    def __init__(self, w1, b1, w2, b2):
+        self.layers = [Lin(w1, b1), Relu(), Lin(w2, b2)]
+        self.loss = MSE()
+    
+    def __call__(self, x, targ):
+        for l in self.layers: x = l(x)
+        return self.loss(x, targ)
+            
+    def backward(self):
+        self.loss.backward()
+        for l in reversed(self.layers): l.backward()       
+```
+
+```python
+w1.g,b1.g,w2.g,b2.g = [None]*4
+model = Model(w1, b1, w2, b2)
+```
+
+```python
+%time loss = model(x_train, y_train)
+```
+
+    CPU times: user 186 ms, sys: 75.6 ms, total: 262 ms
+    Wall time: 35.6 ms
+
+
+```python
+%time model.backward()
+```
+
+    CPU times: user 313 ms, sys: 292 ms, total: 605 ms
+    Wall time: 76.2 ms
+
+
+```python
+test_near(w2g, w2.g)
+test_near(b2g, b2.g)
+test_near(w1g, w1.g)
+test_near(b1g, b1.g)
+test_near(inp, x_train.g)
+```
+
+## Module.forward()
+
+We want to get rid of the unnecessary calls to `__call__` each time
+
+```python
+x_train.shape, w1.shape
+```
+
+
+
+
+    (torch.Size([50000, 784]), torch.Size([784, 50]))
+
+
+
+```python
+class Module():
+    def __call__(self, *args):
+        self.args = args
+        self.out = self.forward(*args)
+        return self.out
+    
+    def forward(self): raise Exception("not implemented")
+        
+    def backward(self): self.bwd(self.out, *self.args)
+```
+
+```python
+class Relu(Module):
+    def forward(self, inp): return inp.clamp_min(0.)-0.5
+    
+    def bwd(self, out, inp): inp.g = (inp > 0).float() * out.g
+```
+
+```python
+class Lin(Module):
+    def __init__(self, w, b): self.w, self.b = w, b
+        
+    def forward(self, inp): return inp @ self.w + self.b
+    
+    def bwd(self, out, inp):
+        inp.g = out.g @ self.w.t()
+        self.w.g =  inp.t() @ out.g
+        self.b.g = out.g.sum(0)
+```
+
+```python
+class MSE(Module):
+    def forward(self, inp, targ): return (inp.squeeze(-1)-targ).pow(2).mean()
+    
+    def bwd(self, out, inp, targ): inp.g = 2*(inp.squeeze()-targ).unsqueeze(-1) / targ.shape[0]
+```
+
+```python
+class Model():
+    def __init__(self):
+        self.layers = [Lin(w1, b1), Relu(), Lin(w2, b2)]
+        self.loss = MSE()
+        
+    def __call__(self, x, targ):
+        for l in self.layers: x = l(x)
+        return self.loss(x, targ)
+    
+    def backward(self):
+        self.loss.backward()
+        for l in reversed(self.layers): l.backward() 
+```
+
+```python
+w1.g, b1.g, w2.g, b2.g = [None] * 4
+model = Model()
+```
+
+```python
+%time loss = model(x_train ,y_train)
+```
+
+    CPU times: user 130 ms, sys: 107 ms, total: 238 ms
+    Wall time: 30.7 ms
+
+
+```python
+%time model.backward()
+```
+
+    CPU times: user 325 ms, sys: 313 ms, total: 638 ms
+    Wall time: 81.7 ms
+
+
+```python
+test_near(w2g, w2.g)
+test_near(b2g, b2.g)
+test_near(w1g, w1.g)
+test_near(b1g, b1.g)
+test_near(inp, x_train.g)
+```
+
+## nn.Linear and nn.Module
+
+Now that we have an understanding of how this works, we can switch to pytorch modules - `nn.Linear` and `nn.Module`
+
+```python
+#export
+from torch import nn
+```
+
+```python
+class Model(nn.Module):
+    def __init__(self, n_in, nh, n_out):
+        super().__init__()
+        self.layers = [nn.Linear(n_in, nh), nn.ReLU(), nn.Linear(nh, n_out)]
+        self.loss = mse
+    
+    def __call__(self, x, targ):
+        for l in self.layers: x = l(x)
+        return self.loss(x.squeeze(), targ)        
+```
+
+```python
+model = Model(m, nh, 1)
+```
+
+```python
+%time loss = model(x_train, y_train)
+```
+
+    CPU times: user 112 ms, sys: 124 ms, total: 236 ms
+    Wall time: 36.8 ms
+
+
+```python
+%time loss.backward()
+```
+
+    CPU times: user 308 ms, sys: 175 ms, total: 483 ms
+    Wall time: 69.8 ms
+
