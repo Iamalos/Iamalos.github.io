@@ -491,17 +491,6 @@ test_near(inp, x_train.g)
 We want to get rid of the unnecessary calls to `__call__` each time
 
 ```python
-x_train.shape, w1.shape
-```
-
-
-
-
-    (torch.Size([50000, 784]), torch.Size([784, 50]))
-
-
-
-```python
 class Module():
     def __call__(self, *args):
         self.args = args
